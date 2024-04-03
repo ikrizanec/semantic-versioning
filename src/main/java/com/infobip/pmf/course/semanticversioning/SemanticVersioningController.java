@@ -23,9 +23,6 @@ public class SemanticVersioningController {
 
     @GetMapping("/next")
     public String getNext(@RequestParam("v") String version, @RequestParam("type") String type) {
-        //String decodedVersion = null;
-        //decodedVersion = URLDecoder.decode(version, StandardCharsets.UTF_8);
-
         if(!semanticVersioningService.isValidVersion(version))
             return "Verzion" + version + "does not adhere to the SemVer 2.0.0 specification.";
         if(!semanticVersioningService.isValidType(type))

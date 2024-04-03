@@ -84,13 +84,11 @@ public class SemanticVersioningService {
             String[] little1 = parts1[i].split("\\.");
             String[] little2 = parts2[i].split("\\.");
 
-            //najprije usporediti dijelove - manji je broj ili usporediti dva broja ili rijeci
             for(int j = 0; j < little1.length && j < little2.length; j++){
                 if(compareTwoUnits(little1[j], little2[j]) != 0){
                     return compareTwoUnits(little1[j], little2[j]);
                 }
             }
-            // ako su isti, veci je duzi
             if(little1.length > little2.length) return 1;
             if(little2.length > little1.length) return 2;
         }
