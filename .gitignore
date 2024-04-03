@@ -42,3 +42,4 @@ replay_pid*
 .DS_Store
 
 .idea/
+semantic-versioning.iml
