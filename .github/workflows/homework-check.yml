@@ -1,0 +1,166 @@
+name: "Homework Check"
+
+on:
+  workflow_dispatch:
+    inputs:
+      rootPath:
+        description: 'Path to the root of the maven project'
+        required: false
+        type: string
+
+jobs:
+  check_homework:
+    runs-on: ubuntu-latest
+    name: Check homework assignment
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up path to pom file
+        id: pom
+        run: |
+          USER_INPUT=${{ inputs.rootPath }}
+          echo "path=${USER_INPUT:-.}/pom.xml" >> $GITHUB_OUTPUT
+
+      - name: Build with Maven
+        if: always()
+        run: mvn clean install -B -f ${{ steps.pom.outputs.path }}
+
+      - name: Run application
+        if: always()
+        run: bash .github/workflows/scripts/start.sh ${{ steps.pom.outputs.path }}
+
+      - name: Prepare result counters
+        if: always()
+        run: |
+          echo "0" > failure
+          echo "0" > success
+
+    # Simple version comparisons, do not depend on prerelease
+
+      - name: Test case 1 (1.0.1 vs 0.2.3)
+        if: always()
+        run: |
+          response=$(curl -s 'http://localhost:8080/versions/max?v1=1.0.1&v2=0.2.3')
+          expected="1.0.1"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+      - name: Test case 2 (0.0.9 vs 0.0.10)
+        if: always()
+        run: |
+          response=$(curl -s 'http://localhost:8080/versions/max?v1=0.0.9&v2=0.0.10')
+          expected="0.0.10"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+      - name: Test case 3 (3.19.9 vs 3.20.0)
+        if: always()
+        run: |
+          response=$(curl -s 'http://localhost:8080/versions/max?v1=3.19.9&v2=3.20.0')
+          expected="3.20.0"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+      - name: Test case 4 (1.13.4 vs 1.13.4)
+        if: always()
+        run: |
+          response=$(curl -s 'http://localhost:8080/versions/max?v1=1.13.4&v2=1.13.4')
+          expected="1.13.4"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+      - name: Test case 5 (1.5.0-RC.2+build15 vs 1.6.1+build33)
+        if: always()
+        run: |
+          response=$(curl -s 'http://localhost:8080/versions/max?v1=1.5.0-RC.2%2Bbuild15&v2=1.6.1%2Bbuild33')
+          expected="1.6.1+build33"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+    # Complex version comparisons, depends on prerelease
+
+      - name: Test case 6 (1.0.0-SNAPSHOT vs 1.0.0)
+        if: always()
+        run: |
+          response=$(curl -s 'http://localhost:8080/versions/max?v1=1.0.0-SNAPSHOT&v2=1.0.0')
+          expected="1.0.0"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+      - name: Test case 7 (2.0.0-RC.2 vs 2.0.0-RC.12)
+        if: always()
+        run: |
+          response=$(curl -s -s 'http://localhost:8080/versions/max?v1=2.0.0-RC.2&v2=2.0.0-RC.12')
+          expected="2.0.0-RC.12"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+      - name: Test case 8 (2.0.0-alpha.test vs 2.0.0-beta)
+        if: always()
+        run: |
+          response=$(curl -s -s 'http://localhost:8080/versions/max?v1=2.0.0-alpha.test&v2=2.0.0-beta')
+          expected="2.0.0-beta"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+      - name: Test case 9 (3.1.0-alpha.3 vs 3.1.0-alpha)
+        if: always()
+        run: |
+          response=$(curl -s -s 'http://localhost:8080/versions/max?v1=3.1.0-alpha.3&v2=3.1.0-alpha')
+          expected="3.1.0-alpha.3"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+      - name: Test case 10 (3.1.0-rc.4+123131 vs 3.1.0-rc.10+10094)
+        if: always()
+        run: |
+          response=$(curl -s -s 'http://localhost:8080/versions/max?v1=3.1.0-rc.10%2B10094&v2=3.1.0-rc.4%2B123131')
+          expected="3.1.0-rc.10+10094"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+    # Version incrementing
+
+      - name: Test case 11 (next 0.13.9 MINOR)
+        if: always()
+        run: |
+          response=$(curl -s 'http://localhost:8080/versions/next?v=0.13.9&type=MINOR')
+          expected="0.14.0"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+      - name: Test case 12 (next 0.0.1-SNAPSHOT MAJOR)
+        if: always()
+        run: |
+          response=$(curl -s 'http://localhost:8080/versions/next?v=0.0.1-SNAPSHOT&type=MAJOR')
+          expected="1.0.0"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+      - name: Test case 13 (next 2.0.0-RC.1 PATCH)
+        if: always()
+        run: |
+          response=$(curl -s 'http://localhost:8080/versions/next?v=2.0.0-RC.1&type=PATCH')
+          expected="2.0.1"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+      - name: Test case 14 (next 1.2.3 MAJOR)
+        if: always()
+        run: |
+          response=$(curl -s 'http://localhost:8080/versions/next?v=1.2.3&type=MAJOR')
+          expected="2.0.0"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+      - name: Test case 15 (next 0.9.1-beta.2+build13241 MINOR)
+        if: always()
+        run: |
+          response=$(curl -s 'http://localhost:8080/versions/next?v=0.9.1-beta.2%2Bbuild13241&type=MINOR')
+          expected="0.10.0"
+          bash .github/workflows/scripts/assert.sh "$response" "$expected"
+
+    # Final results
+
+      - name: Results
+        if: always()
+        run: |
+          success=$(cat success)
+          failure=$(cat failure)
+          echo "Results:"
+          echo "Success: $success"
+          echo "Failure: $failure"
+          echo "::notice::Overall score: $success/$(($success + $failure))"
